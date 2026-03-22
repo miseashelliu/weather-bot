@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: weather-bot
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --timeout 120

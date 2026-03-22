@@ -100,9 +100,10 @@ def compose_message(weather, city, events):
                 )
             }],
         },
-        timeout=30,
+        timeout=60,
     )
     result = resp.json()
+    print(f"OpenRouter response: {result}")
     if "choices" not in result:
         raise Exception(f"OpenRouter error: {result}")
     return result["choices"][0]["message"]["content"].strip()
