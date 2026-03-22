@@ -102,7 +102,10 @@ def compose_message(weather, city, events):
         },
         timeout=30,
     )
-    return resp.json()["choices"][0]["message"]["content"].strip()
+    result = resp.json()
+    if "choices" not in result:
+        raise Exception(f"OpenRouter error: {result}")
+    return result["choices"][0]["message"]["content"].strip()
 
 
 def send_sms(body):
