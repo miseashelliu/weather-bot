@@ -115,8 +115,8 @@ def send_sms(body):
         os.environ["TWILIO_AUTH_TOKEN"],
     ).messages.create(
         body=body,
-        from_=os.environ["TWILIO_FROM_NUMBER"],
-        to=os.environ["MY_PHONE_NUMBER"],
+        from_="whatsapp:+14155238886",
+        to=f"whatsapp:{os.environ['MY_PHONE_NUMBER']}",
     )
 
 
