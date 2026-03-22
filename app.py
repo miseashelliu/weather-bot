@@ -39,7 +39,7 @@ def get_weather(lat, lon):
             "longitude": lon,
             "daily": [
                 "temperature_2m_max", "temperature_2m_min",
-                "precipitation_probability_max", "precipitation_hours", "weathercode",
+                "precipitation_probability_max", "precipitation_hours", "weather_code",
             ],
             "hourly": ["precipitation_probability"],
             "current": ["temperature_2m", "apparent_temperature"],
@@ -70,7 +70,7 @@ def find_rain_window(weather):
 def compose_message(weather, city, events):
     daily = weather["daily"]
     current = weather["current"]
-    code = daily["weathercode"][0]
+    code = daily["weather_code"][0]
 
     summary = {
         "city": city,
