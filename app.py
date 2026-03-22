@@ -82,31 +82,22 @@ def compose_message(weather, city, events):
         "meetings": events,
     }
 
+    prompt = (
+        "Write a morning briefing text under 280 chars. Be specific and practical. "
+        "Include: city, feels-like temp, high/low, rain timing if any, what to wear, "
+        f"meetings with timing tips. No fluff, no quotes.\n\nData: {json.dumps(summary)}"
+    )
     resp = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {os.environ['OPENROUTER_API_KEY']}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "meta-llama/llama-3.3-70b-instruct:free",
-            "messages": [{
-                "role": "user",
-                "content": (
-                    "Write a morning briefing text under 280 chars. Be specific and practical. "
-                    "Include: city, feels-like temp, high/low, rain timing if any, what to wear, "
-                    "meetings with timing tips. No fluff, no quotes.\n\n"
-                    f"Data: {json.dumps(summary)}"
-                )
-            }],
-        },
-        timeout=60,
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={os.environ['GEMINI_API_KEY']}",
+        headers={"Content-Type": "application/json"},
+        json={"contents": [{"parts": [{"text": prompt}]}]},
+        timeout=30,
     )
     result = resp.json()
-    print(f"OpenRouter response: {result}")
-    if "choices" not in result:
-        raise Exception(f"OpenRouter error: {result}")
-    return result["choices"][0]["message"]["content"].strip()
+    print(f"Gemini response: {result}")
+    if "candidates" not in result:
+        raise Exception(f"Gemini error: {result}")
+    return result["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
 def send_sms(body):
