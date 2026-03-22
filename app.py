@@ -32,7 +32,7 @@ def reverse_geocode(lat, lon):
 
 
 def get_weather(lat, lon):
-    return requests.get(
+    result = requests.get(
         "https://api.open-meteo.com/v1/forecast",
         params={
             "latitude": lat,
@@ -49,6 +49,8 @@ def get_weather(lat, lon):
         },
         timeout=5,
     ).json()
+    print(f"Open-Meteo response: {result}")
+    return result
 
 
 def find_rain_window(weather):
