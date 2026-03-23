@@ -85,9 +85,11 @@ def compose_message(weather, city, events):
     }
 
     prompt = (
-        "Write a morning briefing text under 280 chars. Be specific and practical. "
-        "Include: city, feels-like temp, high/low, rain timing if any, what to wear, "
-        f"meetings with timing tips. No fluff, no quotes.\n\nData: {json.dumps(summary)}"
+        "Write a cheerful, upbeat morning briefing text under 280 chars. Be warm and fun — "
+        "use a light pun or playful tone to put the reader in a good mood. Still include the "
+        "key info: city, feels-like temp, high/low, rain timing if any, what to wear, and "
+        "meetings with timing tips. No quotes, no fluff, just good vibes and useful info.\n\n"
+        f"Data: {json.dumps(summary)}"
     )
     resp = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={os.environ['GEMINI_API_KEY']}",
