@@ -1,6 +1,7 @@
 import os
 import json
 import requests
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from twilio.rest import Client as TwilioClient
 
@@ -94,8 +95,11 @@ def compose_message(weather, city, events):
     resp = requests.post(
         f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={os.environ['GEMINI_API_KEY']}",
         headers={"Content-Type": "application/json"},
-        json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=30,
+        json={
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"thinkingConfig": {"thinkingBudget": 0}},
+        },
+        timeout=60,
     )
     result = resp.json()
     print(f"Gemini response: {result}")
@@ -125,8 +129,11 @@ def weather():
     lon = float(data["lon"])
     events = data.get("events", [])
 
-    city = reverse_geocode(lat, lon)
-    forecast = get_weather(lat, lon)
+    with ThreadPoolExecutor() as ex:
+        city_future = ex.submit(reverse_geocode, lat, lon)
+        forecast_future = ex.submit(get_weather, lat, lon)
+        city = city_future.result()
+        forecast = forecast_future.result()
     message = compose_message(forecast, city, events)
     send_sms(message)
 
