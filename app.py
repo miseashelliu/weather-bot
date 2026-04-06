@@ -55,10 +55,13 @@ def compose_message(weather, events):
     }
 
     prompt = (
-        "Write a cheerful, upbeat morning briefing text under 280 chars. Be warm and fun — "
-        "use a light pun or playful tone to put the reader in a good mood. Still include the "
-        "key info: city, feels-like temp, high/low, rain timing if any, what to wear, and "
-        "meetings with timing tips. No quotes, no fluff, just good vibes and useful info.\n\n"
+        "Write a morning weather briefing text message. Use this exact style:\n\n"
+        "Good morning!! [current temp] degrees in [city] this morning (high [high]/low [low]). "
+        "[One sentence on conditions and what to wear.]\n\n"
+        "If there are meetings, add a new paragraph for each: "
+        "'You also have [meeting] at [time]. [brief encouraging line]'\n\n"
+        "Be warm and friendly but concise. You can use emojis and a light pun, but keep it subtle — "
+        "don't overdo it. No hashtags, no quotes.\n\n"
         f"Data: {json.dumps(summary)}"
     )
     resp = requests.post(
