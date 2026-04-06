@@ -62,6 +62,17 @@ def compose_message(weather, events):
         "'You also have [meeting] at [time]. [brief encouraging line]'\n\n"
         "Be warm and friendly but concise. You can use emojis and a light pun, but keep it subtle — "
         "don't overdo it. No hashtags, no quotes.\n\n"
+        "For clothing, use this temperature guide (she runs cold):\n"
+        "- Below 40°F: heavy winter coat or big puffer, wool socks, scarf\n"
+        "- 40–50°F: coat or puffer\n"
+        "- 50–60°F: puffer, or jacket with layers\n"
+        "- 60–70°F: jacket or hoodie\n"
+        "- 70–79°F: light jacket\n"
+        "- 80–89°F: t-shirt weather, suggest bringing a light jacket if it cools down later\n"
+        "- 90°F+: tank top and sundress weather\n"
+        "If it's sunny, mention sunglasses.\n"
+        "If it's going to rain at any point: suggest a raincoat or umbrella and describe how hard it will rain. "
+        "If moderate or heavy rain, suggest boots. If light rain, normal shoes are fine.\n\n"
         f"Data: {json.dumps(summary)}"
     )
     resp = requests.post(
