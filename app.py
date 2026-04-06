@@ -1,87 +1,56 @@
 import os
 import json
 import requests
-from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify
 from twilio.rest import Client as TwilioClient
 
 app = Flask(__name__)
 
-WMO_CODES = {
-    0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
-    45: "foggy", 48: "icy fog",
-    51: "light drizzle", 53: "moderate drizzle", 55: "dense drizzle",
-    61: "light rain", 63: "moderate rain", 65: "heavy rain",
-    71: "light snow", 73: "moderate snow", 75: "heavy snow",
-    80: "light showers", 81: "moderate showers", 82: "violent showers",
-    95: "thunderstorm", 96: "thunderstorm w/ hail", 99: "thunderstorm w/ heavy hail",
-}
-
-
-def reverse_geocode(lat, lon):
-    try:
-        resp = requests.get(
-            "https://nominatim.openstreetmap.org/reverse",
-            params={"lat": lat, "lon": lon, "format": "json"},
-            headers={"User-Agent": "weather-agent/1.0"},
-            timeout=5,
-        ).json()
-        addr = resp.get("address", {})
-        return addr.get("city") or addr.get("town") or addr.get("village") or "your area"
-    except Exception:
-        return "your area"
-
 
 def get_weather(lat, lon):
-    result = requests.get(
-        "https://api.open-meteo.com/v1/forecast",
-        params={
-            "latitude": lat,
-            "longitude": lon,
-            "daily": [
-                "temperature_2m_max", "temperature_2m_min",
-                "precipitation_probability_max", "precipitation_hours", "weather_code",
-            ],
-            "hourly": ["precipitation_probability"],
-            "current": ["temperature_2m", "apparent_temperature"],
-            "temperature_unit": "fahrenheit",
-            "timezone": "auto",
-            "forecast_days": 1,
-        },
-        timeout=5,
-    ).json()
-    print(f"Open-Meteo response: {result}")
-    return result
+    params = {"lat": lat, "lon": lon, "appid": os.environ["OWM_API_KEY"], "units": "imperial"}
+    current = requests.get("https://api.openweathermap.org/data/2.5/weather", params=params, timeout=5).json()
+    forecast = requests.get("https://api.openweathermap.org/data/2.5/forecast", params=params, timeout=5).json()
+    print(f"OWM current: {current}")
+    print(f"OWM forecast: {forecast}")
+    if current.get("cod") != 200:
+        raise Exception(f"OWM error: {current.get('message', 'unknown')}")
+    if str(forecast.get("cod")) != "200":
+        raise Exception(f"OWM forecast error: {forecast.get('message', 'unknown')}")
+    return {"current": current, "forecast": forecast}
 
 
 def find_rain_window(weather):
-    hours = weather["hourly"]["time"]
-    probs = weather["hourly"]["precipitation_probability"]
-    rain_hours = [
-        h for h, p in zip(hours, probs)
-        if p >= 40 and 6 <= int(h.split("T")[1][:2]) <= 22
+    today = weather["forecast"]["list"][0]["dt_txt"][:10]
+    entries = [e for e in weather["forecast"]["list"] if e["dt_txt"].startswith(today)]
+    rain_entries = [
+        e for e in entries
+        if e.get("pop", 0) >= 0.4 and 6 <= int(e["dt_txt"][11:13]) <= 22
     ]
-    if not rain_hours:
+    if not rain_entries:
         return None
-    start = rain_hours[0].split("T")[1][:5]
-    end = rain_hours[-1].split("T")[1][:5]
+    start = rain_entries[0]["dt_txt"][11:16]
+    end = rain_entries[-1]["dt_txt"][11:16]
     return f"{start}–{end}" if start != end else f"around {start}"
 
 
-def compose_message(weather, city, events):
-    daily = weather["daily"]
+def compose_message(weather, events):
     current = weather["current"]
-    code = daily["weather_code"][0]
+    forecast_list = weather["forecast"]["list"]
+    city = current.get("name") or "your area"
+
+    today = forecast_list[0]["dt_txt"][:10]
+    today_entries = [e for e in forecast_list if e["dt_txt"].startswith(today)]
 
     summary = {
         "city": city,
-        "current_temp_f": round(current["temperature_2m"]),
-        "feels_like_f": round(current["apparent_temperature"]),
-        "high_f": round(daily["temperature_2m_max"][0]),
-        "low_f": round(daily["temperature_2m_min"][0]),
-        "rain_chance_pct": daily["precipitation_probability_max"][0],
+        "current_temp_f": round(current["main"]["temp"]),
+        "feels_like_f": round(current["main"]["feels_like"]),
+        "high_f": round(max(e["main"]["temp_max"] for e in today_entries)),
+        "low_f": round(min(e["main"]["temp_min"] for e in today_entries)),
+        "rain_chance_pct": round(max(e.get("pop", 0) for e in today_entries) * 100),
         "rain_window": find_rain_window(weather),
-        "conditions": WMO_CODES.get(code, "mixed conditions"),
+        "conditions": current["weather"][0]["description"],
         "meetings": events,
     }
 
@@ -100,12 +69,11 @@ def compose_message(weather, city, events):
             "generationConfig": {"thinkingConfig": {"thinkingBudget": 0}},
         },
         timeout=60,
-    )
-    result = resp.json()
-    print(f"Gemini response: {result}")
-    if "candidates" not in result:
-        raise Exception(f"Gemini error: {result}")
-    return result["candidates"][0]["content"]["parts"][0]["text"].strip()
+    ).json()
+    print(f"Gemini response: {resp}")
+    if "candidates" not in resp:
+        raise Exception(f"Gemini error: {resp}")
+    return resp["candidates"][0]["content"]["parts"][0]["text"].strip()
 
 
 def send_sms(body):
@@ -129,12 +97,8 @@ def weather():
     lon = float(data["lon"])
     events = data.get("events", [])
 
-    with ThreadPoolExecutor() as ex:
-        city_future = ex.submit(reverse_geocode, lat, lon)
-        forecast_future = ex.submit(get_weather, lat, lon)
-        city = city_future.result()
-        forecast = forecast_future.result()
-    message = compose_message(forecast, city, events)
+    weather_data = get_weather(lat, lon)
+    message = compose_message(weather_data, events)
     send_sms(message)
 
     return jsonify({"ok": True, "message": message})
